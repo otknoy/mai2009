@@ -19,31 +19,34 @@ def split_mai2009(text):
 def normalize(s):
     return unicodedata.normalize('NFKC', s)
 
-# line_pattern = re.compile(ur'^＼(..)＼(.+)')
-# def parse_line(line):
-#     m = line_pattern.search(line)
-#     tag = m.group(1)
-#     content = m.group(2)
-#     return tag, content
-
+multiple_tags = ['AA', 'KA', 'AB', 'KB', 'T2']
 def parse2dict(text):
     doc = {}
-    for l in text.split('\n'):
-        match = re.search(r'^\\(.+)\\(.+)', l)
-        if not match:
-            continue
-        tag = match.group(1)
-        content = match.group(2)
-        if not doc.has_key(tag):
-            doc[tag] = []
-        doc[tag].append(content)
+    for line in text.splitlines():
+        tag, content = parse_line(line)
+        content = content.strip()
+
+        if tag in multiple_tags:
+            if not doc.has_key(tag):
+                doc[tag] = []
+            doc[tag].append(content)
+        else:
+            if tag in doc:
+                print 'error'
+            doc[tag] = content
     return doc
 
+line_pattern = re.compile(ur'^\\(..)\\(.*)')
+def parse_line(line):
+    m = line_pattern.search(line)
+    tag = m.group(1)
+    content = m.group(2)
+    return tag, content
+
 def save_as_json(filename, s):
-    # j = json.dumps(s, ensure_ascii=False, indent=True).encode('utf-8')
-    j = json.dumps(s, ensure_ascii=False).encode('utf-8')
+    j = json.dumps(s, ensure_ascii=False, indent=True)
     f = open(filename, 'w')
-    f.write(j)
+    f.write(j.encode('utf-8'))
     f.close()
 
 
@@ -64,7 +67,7 @@ if __name__ == '__main__':
         d = parse2dict(article)
         del article
 
-        output_filename = os.path.join('output', d['ID'][0] + '.txt')
+        output_filename = os.path.join('output', d['ID'] + '.json')
         save_as_json(output_filename, d)
 
     print "Finish!"
