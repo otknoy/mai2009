@@ -1,85 +1,49 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
+import re
+import nkf
 import unicodedata
 import json
-
-import nkf
-import re
-
-class ArticleBuilder:
-    def __init__(self):
-        self.id = 0
-
+import os
 
 def load_mai2009(filename):
-    f = open(filename)
-    for line in f:
-        line =  nkf.nkf('-w', line).decode('utf-8')
+    text = open(filename).read()
+    text = nkf.nkf('-w', text)
+    text = text.rstrip()
+    return text.decode('utf-8')
 
-        tag, content = parse_line(line)
-
-        tag = normalize(tag)
-        content = normalize(content)
-
-        print tag, content
-
-line_pattern = re.compile(ur'^＼(..)＼(.+)')
-def parse_line(line):
-    m = line_pattern.search(line)
-    tag = m.group(1)
-    content = m.group(2)
-    return tag, content
-
-
-def split(s):
-    s = s.replace(u'＼ＩＤ＼', u'\n＼ＩＤ＼')
-    return s.split('\n\n')[1:]
+def split_mai2009(text):
+    text = text.replace(u'＼ＩＤ＼', u'\n＼ＩＤ＼')
+    return text.split('\n\n')[1:]
 
 def normalize(s):
     return unicodedata.normalize('NFKC', s)
 
-def format_to_csv(s):
-    temp = []
-    for l in s.split('\n'):
-        match = re.search(r'^\\(.+)\\(.+)', l)
-        if not match:
-            continue
+# line_pattern = re.compile(ur'^＼(..)＼(.+)')
+# def parse_line(line):
+#     m = line_pattern.search(line)
+#     tag = m.group(1)
+#     content = m.group(2)
+#     return tag, content
 
-        k = match.group(1)
-        v = match.group(2).strip()
-        temp.append(k + ',' + v)
-    return '\n'.join(temp)
-
-def parse(s):
+def parse2dict(text):
     doc = {}
-    for l in s.split('\n'):
+    for l in text.split('\n'):
         match = re.search(r'^\\(.+)\\(.+)', l)
         if not match:
             continue
-        k = match.group(1)
-        v = match.group(2)
-        if not doc.has_key(k):
-            doc[k] = []
-        doc[k].append(v)
+        tag = match.group(1)
+        content = match.group(2)
+        if not doc.has_key(tag):
+            doc[tag] = []
+        doc[tag].append(content)
     return doc
 
-def format(d):
-    # d = json.dumps(d, indent=True, sort_keys=True)
-    s = ''
-    for k, v in d.items():
-        for e in v:
-            s += '%s,%s\n' % (k, e)
-    return s.encode('utf-8')
-
-def output_to_file(doc):
-    out_dir = 'output'
-    # fname = doc['ID'][0] + '_' + doc['T1'][0] + '.txt'
-    fname = doc['ID'][0] + '.txt'    
-    filename = os.path.join(out_dir, fname)
-
+def save_as_json(filename, s):
+    # j = json.dumps(s, ensure_ascii=False, indent=True).encode('utf-8')
+    j = json.dumps(s, ensure_ascii=False).encode('utf-8')
     f = open(filename, 'w')
-    f.write(format(d))
+    f.write(j)
     f.close()
 
 
@@ -87,14 +51,20 @@ if __name__ == '__main__':
     import sys
     filename = sys.argv[1]
 
-    text_file = load_mai2009(filename)
+    print "Loding file: %s" % filename
+    text = load_mai2009(filename)
 
+    print "Split loaded file"
+    articles = split_mai2009(text)
+    del text
 
+    print "Output files as json"
+    for article in articles:
+        article = normalize(article)
+        d = parse2dict(article)
+        del article
 
-    # text = open(filename).read().decode('utf-8')
-    # articles = split(text)
+        output_filename = os.path.join('output', d['ID'][0] + '.txt')
+        save_as_json(output_filename, d)
 
-    # for article in articles:
-    #     a = normalize(article)
-    #     d = parse(a)
-    #     output_to_file(d)
+    print "Finish!"
