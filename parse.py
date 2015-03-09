@@ -1,9 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-import re
 import unicodedata
 import json
+
+import nkf
+import re
+
+class ArticleBuilder:
+    def __init__(self):
+        self.id = 0
+
+
+def load_mai2009(filename):
+    f = open(filename)
+    for line in f:
+        line =  nkf.nkf('-w', line).decode('utf-8')
+
+        tag, content = parse_line(line)
+
+        tag = normalize(tag)
+        content = normalize(content)
+
+        print tag, content
+
+line_pattern = re.compile(ur'^＼(..)＼(.+)')
+def parse_line(line):
+    m = line_pattern.search(line)
+    tag = m.group(1)
+    content = m.group(2)
+    return tag, content
+
 
 def split(s):
     s = s.replace(u'＼ＩＤ＼', u'\n＼ＩＤ＼')
@@ -60,10 +87,14 @@ if __name__ == '__main__':
     import sys
     filename = sys.argv[1]
 
-    text = open(filename).read().decode('utf-8')
-    articles = split(text)
+    text_file = load_mai2009(filename)
 
-    for article in articles:
-        a = normalize(article)
-        d = parse(a)
-        output_to_file(d)
+
+
+    # text = open(filename).read().decode('utf-8')
+    # articles = split(text)
+
+    # for article in articles:
+    #     a = normalize(article)
+    #     d = parse(a)
+    #     output_to_file(d)
